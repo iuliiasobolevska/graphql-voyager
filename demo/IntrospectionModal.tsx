@@ -6,6 +6,7 @@ import Tabs from '@material-ui/core/Tabs';
 import Tab from '@material-ui/core/Tab';
 import Button from '@material-ui/core/Button';
 import Clipboard from 'react-clipboard.js';
+import JSONForm from 'json-as-form';
 
 import {
   buildSchema,
@@ -19,17 +20,23 @@ import './IntrospectionModal.css';
 export interface IntrospectionModalProps {
   open: boolean;
   onClose: () => void;
-  onChange: (introspectin: any) => void;
+  onChange: (introspection: any) => void;
 }
 
 const Presets = 'Presets';
+const URL = 'URL';
 const SDL = 'SDL';
 const Introspection = 'Introspection';
-const tabNames = [Presets, SDL, Introspection];
+const tabNames = [Presets, URL, SDL, Introspection];
 
 const initialConfig = {
   inputType: Presets,
   activePreset: defaultPresetName,
+  urlText: null,
+  headers: {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  },
   sdlText: null,
   jsonText: null,
 };
@@ -70,11 +77,22 @@ export class IntrospectionModal extends React.Component<
     this.props.onClose();
   };
 
+  fetchIntrospection = (url, headers) => {
+    return fetch(url, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({ query: introspectionQuery }),
+    }).then(response => response.json());
+  };
+
   handleSubmit = () => {
-    const { inputType, activePreset, jsonText, sdlText } = this.state.current;
+    const { inputType, activePreset, urlText, headers, jsonText, sdlText } = this.state.current;
     switch (inputType) {
       case Presets:
         this.props.onChange(PRESETS[activePreset]);
+        break;
+      case URL:
+        this.fetchIntrospection(urlText, headers).then(data => this.props.onChange(data));
         break;
       case Introspection:
         this.props.onChange(JSON.parse(jsonText));
@@ -89,17 +107,27 @@ export class IntrospectionModal extends React.Component<
     this.props.onClose();
   };
 
-  handlePresetChange = (activePreset) => {
+  handlePresetChange = activePreset => {
     this.changeCurrent({ activePreset });
   };
 
-  handleSDLChange = (event) => {
+  handleURLChange = event => {
+    let urlText = event.target.value;
+    if (urlText === '') urlText = null;
+    this.changeCurrent({ urlText });
+  };
+
+  handleHeadersChange = headers => {
+    this.changeCurrent({ headers });
+  };
+
+  handleSDLChange = event => {
     let sdlText = event.target.value;
     if (sdlText === '') sdlText = null;
     this.changeCurrent({ sdlText });
   };
 
-  handleJSONChange = (event) => {
+  handleIntrospectionChange = event => {
     let jsonText = event.target.value;
     if (jsonText === '') jsonText = null;
     this.changeCurrent({ jsonText });
@@ -119,11 +147,13 @@ export class IntrospectionModal extends React.Component<
             onChange={this.handleTabChange}
           >
             <Tab label={Presets} />
+            <Tab label={URL} />
             <Tab label={SDL} />
             <Tab label={Introspection} />
           </Tabs>
           <div className="tab-container">
             {inputType === Presets && this.renderPresetsTab()}
+            {inputType === URL && this.renderURLTab()}
             {inputType === SDL && this.renderSDLTab()}
             {inputType === Introspection && this.renderIntrospectionTab()}
           </div>
@@ -167,12 +197,23 @@ export class IntrospectionModal extends React.Component<
     );
   }
 
+  renderURLTab() {
+    const { urlText, headers } = this.state.current;
+    return (
+      <>
+        <input value={urlText || ''} placeholder="Paste URL here" onChange={this.handleURLChange} />
+        <div>Set headers below:</div>
+        <JSONForm json={headers} autoAddRow={true} onChange={this.handleHeadersChange} />
+      </>
+    );
+  }
+
   renderSDLTab() {
     const { sdlText } = this.state.current;
     return (
       <textarea
         value={sdlText || ''}
-        placeholder="Paste SDL Here"
+        placeholder="Paste SDL here"
         onChange={this.handleSDLChange}
       />
     );
@@ -200,8 +241,8 @@ export class IntrospectionModal extends React.Component<
         </Clipboard>
         <textarea
           value={jsonText || ''}
-          placeholder="Paste Introspection Here"
-          onChange={this.handleJSONChange}
+          placeholder="Paste Introspection (JSON) here"
+          onChange={this.handleIntrospectionChange}
         />
       </>
     );
