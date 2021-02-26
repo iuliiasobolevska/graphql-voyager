@@ -81,7 +81,7 @@ export class IntrospectionModal extends React.Component<
     return fetch(url, {
       method: 'POST',
       headers: headers,
-      body: JSON.stringify({ query: introspectionQuery }),
+      body: JSON.stringify({ query: getIntrospectionQuery() }),
     }).then(response => response.json());
   };
 
